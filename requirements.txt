@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-multipart
+pydantic
+streamlit
+requests
+openai
+Pillow
+httpx
+pandas
+python-dotenv

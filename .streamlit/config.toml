@@ -1,0 +1,31 @@
+# 라이트/다크 두 테마를 정의합니다. 기본은 OS 설정을 따르고,
+# 화면 우측 상단 ⋮ → Settings 에서 Light / Dark / System 을 바로 바꿀 수 있습니다.
+[theme]
+baseRadius = "medium"
+
+[theme.light]
+primaryColor = "#1F3A5F"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F3F5F8"
+textColor = "#1C2430"
+borderColor = "#DDE2E9"
+
+[theme.light.sidebar]
+backgroundColor = "#F3F5F8"
+
+[theme.dark]
+primaryColor = "#7FA7D9"
+backgroundColor = "#0F141B"
+secondaryBackgroundColor = "#18202A"
+textColor = "#E4E8EE"
+borderColor = "#2A3441"
+
+[theme.dark.sidebar]
+backgroundColor = "#141B24"
+
+[client]
+# 배포(Deploy)·개발자 메뉴는 숨기고, 테마 변경이 있는 Settings 메뉴는 남깁니다.
+toolbarMode = "viewer"
+
+[browser]
+gatherUsageStats = false

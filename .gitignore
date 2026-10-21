@@ -1,7 +1,4 @@
-.env
 .venv/
 __pycache__/
-.pytest_cache/
-.ipynb_checkpoints/
-*.log
-local_results/
+*.sqlite3
+.env
