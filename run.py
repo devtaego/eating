@@ -19,14 +19,14 @@ sys.stdout.reconfigure(errors="replace")
 
 
 def ensure_account():
-    from server import add_user, db
+    from server import add_user, db, sync_admin
     admin, password = os.getenv("ADMIN_USER", "").strip(), os.getenv("ADMIN_PASSWORD", "")
+    if admin and password:
+        result = sync_admin(admin, password)
+        if result != "unchanged":
+            print(f"계정 '{admin}'을(를) {'만들었습니다' if result == 'created' else '새 비밀번호로 바꿨습니다'}.")
+        return
     with db() as conn:
-        if admin and password:
-            if not conn.execute("SELECT 1 FROM users WHERE username=?", (admin,)).fetchone():
-                add_user(admin, password)
-                print(f"계정 '{admin}'을(를) 만들었습니다.")
-            return
         has_users = conn.execute("SELECT 1 FROM users LIMIT 1").fetchone()
     if has_users:
         return

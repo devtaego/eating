@@ -35,10 +35,8 @@ def start_api():
     import server
 
     admin, password = os.getenv("ADMIN_USER", "").strip(), os.getenv("ADMIN_PASSWORD", "")
-    with server.db() as conn:
-        exists = conn.execute("SELECT 1 FROM users WHERE username=?", (admin,)).fetchone() if admin else True
-    if admin and password and not exists:
-        server.add_user(admin, password)
+    if admin and password:
+        server.sync_admin(admin, password)  # Secrets에서 비밀번호를 바꾸면 앱 재시작 시 반영됩니다.
 
     api = uvicorn.Server(uvicorn.Config(server.app, host="127.0.0.1", port=API_PORT, log_level="warning"))
     threading.Thread(target=api.run, name="extra-api", daemon=True).start()

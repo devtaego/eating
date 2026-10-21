@@ -70,6 +70,22 @@ def add_user(username, password):
                      (username, salt, password_hash(password, salt)))
 
 
+def sync_admin(username, password):
+    """배포 비밀값의 관리자 계정을 맞춥니다. 없으면 만들고, 비밀번호가 다르면 바꾼 뒤 기존 세션을 끊습니다.
+    반환값: "created" / "updated" / "unchanged"."""
+    with db() as conn:
+        row = conn.execute("SELECT id, salt, password FROM users WHERE username=?", (username,)).fetchone()
+        if row and hmac.compare_digest(password_hash(password, row["salt"]), row["password"]):
+            return "unchanged"
+        if row:
+            salt = secrets.token_hex(16)
+            conn.execute("UPDATE users SET salt=?, password=? WHERE id=?", (salt, password_hash(password, salt), row["id"]))
+            conn.execute("DELETE FROM sessions WHERE user_id=?", (row["id"],))
+            return "updated"
+    add_user(username, password)
+    return "created"
+
+
 init_db()
 
 

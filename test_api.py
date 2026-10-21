@@ -174,6 +174,16 @@ class APITests(unittest.TestCase):
         self.assertEqual(usage["recipes"], {"used": 1, "limit": 1})
         self.assertEqual(usage["images"]["limit"], 0)  # 0 = 제한 없음
 
+    def test_sync_admin_creates_then_updates_password(self):
+        self.assertEqual(self.server.sync_admin("admin2", "first-pass-123"), "created")
+        token = self.client.post("/auth/login", json={"username": "admin2", "password": "first-pass-123"}).json()["token"]
+        self.assertEqual(self.server.sync_admin("admin2", "first-pass-123"), "unchanged")
+        self.assertEqual(self.server.sync_admin("admin2", "second-pass-456"), "updated")
+        self.assertEqual(self.client.post("/auth/login", json={"username": "admin2", "password": "first-pass-123"}).status_code, 401)
+        self.assertEqual(self.client.post("/auth/login", json={"username": "admin2", "password": "second-pass-456"}).status_code, 200)
+        # 비밀번호가 바뀌면 이전 로그인은 끊깁니다.
+        self.assertEqual(self.client.get("/fridge", headers={"Authorization": f"Bearer {token}"}).status_code, 401)
+
     def test_logout_and_invalid_login(self):
         a = self.auth()
         self.client.post("/auth/logout", headers=a)
