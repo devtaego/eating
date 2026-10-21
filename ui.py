@@ -277,6 +277,9 @@ def cover(recipe):
 
 @st.fragment(run_every=4)
 def poll_images(ids):
+    # 로그인이 풀린 뒤에도 브라우저가 조각을 계속 실행할 수 있으므로, 토큰이 없으면 요청하지 않습니다.
+    if "token" not in st.session_state:
+        return
     if any(fetch_image(rid) != "pending" for rid in ids):
         st.rerun()
 
@@ -517,6 +520,17 @@ with st.sidebar:
         html(f'<div class="status"><span class="dot" style="background:{color}"></span>'
              f'<b>{name}</b><span class="desc" style="margin:0">{text}{" · " + detail if ok and detail else ""}</span></div>')
     st.caption("키 설정 여부만 표시합니다. 실제 호출 결과는 이용 시 확인됩니다.")
+    if status["ai_configured"]:
+        quota = api("GET", "/usage")
+        rows = []
+        for kind, name in [("recipes", "레시피 생성"), ("images", "레시피 사진"), ("analyze", "사진 분석")]:
+            used, limit = quota[kind]["used"], quota[kind]["limit"]
+            ratio = min(used / limit, 1) if limit else 0
+            color = "var(--red)" if ratio >= 1 else "var(--orange)" if ratio >= .8 else "var(--accent)"
+            rows.append(f'<div class="match-row" style="font-weight:500"><span>{name}</span>'
+                        f'<span>{used} / {limit if limit else "∞"}</span></div>'
+                        f'<div class="bar" style="margin-bottom:.45rem"><div style="width:{ratio * 100:.0f}%;background:{color}"></div></div>')
+        html('<div class="label">오늘 AI 사용량</div>' + "".join(rows))
     st.divider()
     st.markdown("#### :material/contrast: 화면 테마")
     light, dark = st.columns(2)

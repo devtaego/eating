@@ -137,6 +137,43 @@ class APITests(unittest.TestCase):
         self.assertEqual(fake.images.generate.call_count, 1)
         self.assertEqual(self.client.get("/recipes/999/image", headers=a).status_code, 404)
 
+    def test_login_locked_after_repeated_failures(self):
+        self.server.add_user("lock", "password-lock")
+        for _ in range(5):
+            self.assertEqual(self.client.post("/auth/login", json={"username": "lock", "password": "bad"}).status_code, 401)
+        # 잠긴 동안에는 올바른 비밀번호도 거부합니다.
+        self.assertEqual(self.client.post("/auth/login", json={"username": "lock", "password": "password-lock"}).status_code, 429)
+        self.server.LOGIN_FAILS.clear()
+        self.assertEqual(self.client.post("/auth/login", json={"username": "lock", "password": "password-lock"}).status_code, 200)
+
+    def test_daily_ai_limits(self):
+        self.server.add_user("quota", "password-quota")
+        a = self.auth("quota")
+        image = BytesIO()
+        Image.new("RGB", (10, 10)).save(image, format="PNG")
+        fake = MagicMock()
+        fake.responses.create.return_value.output_text = '{"ingredients":["달걀"]}'
+        env = {"OPENAI_API_KEY": "fake-test-key", "AI_ANALYZE_DAILY_LIMIT": "1", "AI_RECIPES_DAILY_LIMIT": "1",
+               "AI_IMAGES_DAILY_LIMIT": "0"}
+        with patch.dict(os.environ, env), patch.object(self.server, "OpenAI", return_value=fake):
+            upload = lambda: self.client.post("/ingredients/analyze", headers=a,
+                                              files=[("files", ("t.png", image.getvalue(), "image/png"))])
+            self.assertEqual(upload().status_code, 200)
+            self.assertEqual(upload().status_code, 429)
+            self.client.put("/fridge", headers=a, json={"ingredients": ["달걀"]})
+            fake.responses.create.return_value.output_text = json.dumps({"recipes": [
+                {"title": "달걀찜", "minutes": 10, "servings": 1, "ingredients": [{"name": "달걀", "amount": "2개"}],
+                 "steps": ["달걀을 풀어 찌세요."]}]}, ensure_ascii=False)
+            self.assertEqual(self.client.get("/recipes/recommend", headers=a).json()["source"], "ai")
+            self.client.put("/fridge", headers=a, json={"ingredients": ["달걀", "대파"]})
+            limited = self.client.get("/recipes/recommend", headers=a).json()
+            self.assertEqual(limited["source"], "sample")
+            self.assertIn("한도", limited["notice"])
+            usage = self.client.get("/usage", headers=a).json()
+        self.assertEqual(usage["analyze"], {"used": 1, "limit": 1})
+        self.assertEqual(usage["recipes"], {"used": 1, "limit": 1})
+        self.assertEqual(usage["images"]["limit"], 0)  # 0 = 제한 없음
+
     def test_logout_and_invalid_login(self):
         a = self.auth()
         self.client.post("/auth/logout", headers=a)
